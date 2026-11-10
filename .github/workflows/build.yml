@@ -84,7 +84,8 @@ jobs:
 
   release:
     name: Release
-    if: startsWith(github.ref, 'refs/tags/v')
+    # publishes whatever platforms built (a missing macOS/Windows build can be added later by re-running it)
+    if: always() && startsWith(github.ref, 'refs/tags/v') && needs.test.result == 'success'
     needs: [test, build]
     runs-on: ubuntu-latest
     permissions:
@@ -97,4 +98,5 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: '*.zip'
+          fail_on_unmatched_files: false
           generate_release_notes: true
