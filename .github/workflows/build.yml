@@ -1,0 +1,100 @@
+name: Build CREEPER
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Offline DSP test (Linux)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev \
+            libxext-dev libxrender-dev libxcomposite-dev libfreetype-dev libfontconfig1-dev
+      - name: Configure
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCREEPER_BUILD_TESTS=ON
+      - name: Build test
+        run: cmake --build build --target CreeperTest --parallel 4
+      - name: Run test
+        run: ./build/CreeperTest_artefacts/Release/CreeperTest test-output
+      - uses: actions/upload-artifact@v4
+        with:
+          name: test-output
+          path: test-output
+
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            os: macos-14
+          - name: Windows
+            os: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure (macOS, universal arm64 + x86_64)
+        if: runner.os == 'macOS'
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
+
+      - name: Configure (Windows x64)
+        if: runner.os == 'Windows'
+        run: cmake -B build -A x64
+
+      - name: Build
+        run: cmake --build build --config Release --parallel 4
+
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          OUT=build/Creeper_artefacts/Release
+          mkdir -p dist/CREEPER-macOS
+          for p in "$OUT/VST3/CREEPER.vst3" "$OUT/AU/CREEPER.component" "$OUT/Standalone/CREEPER.app"; do
+            codesign --force --deep --sign - "$p"
+            cp -R "$p" dist/CREEPER-macOS/
+          done
+          cp README.md dist/CREEPER-macOS/
+          cd dist && ditto -c -k --keepParent CREEPER-macOS CREEPER-macOS.zip
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $out = "build/Creeper_artefacts/Release"
+          New-Item -ItemType Directory -Force -Path dist/CREEPER-Windows | Out-Null
+          Copy-Item -Recurse "$out/VST3/CREEPER.vst3" dist/CREEPER-Windows/
+          Copy-Item "$out/Standalone/CREEPER.exe" dist/CREEPER-Windows/
+          Copy-Item README.md dist/CREEPER-Windows/
+          Compress-Archive -Path dist/CREEPER-Windows -DestinationPath dist/CREEPER-Windows.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CREEPER-${{ matrix.name }}
+          path: dist/*.zip
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: CREEPER-*
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: '*.zip'
+          generate_release_notes: true
