@@ -37,7 +37,7 @@ jobs:
       matrix:
         include:
           - name: macOS
-            os: macos-14
+            os: macos-latest
           - name: Windows
             os: windows-latest
     steps:
