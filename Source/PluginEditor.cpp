@@ -587,6 +587,25 @@ void CreeperEditor::mouseDown (const juce::MouseEvent& e)
         if (juce::Rectangle<float> (30.0f, 92.0f, 620.0f, 300.0f).contains (l)) return;
     }
 
+    // right-click on the TNT knob: the host's own parameter menu (FL Studio: "Create automation clip", "Link to controller"...)
+    if (e.mods.isPopupMenu())
+    {
+        if (overKnob (l))
+            if (auto* ctx = getHostContext())
+                if (auto menu = ctx->getContextMenuForParameter (chargeParam))
+                {
+                    const auto pos = getMouseXYRelative();
+                    juce::Component::SafePointer<CreeperEditor> safe (this);
+                    std::shared_ptr<juce::HostProvidedContextMenu> m (std::move (menu));
+                    // show it outside the mouse callback so the host menu can take the mouse
+                    juce::MessageManager::callAsync ([safe, m, pos]
+                    {
+                        if (safe != nullptr) m->showNativeMenu (pos);
+                    });
+                }
+        return;
+    }
+
     if (overKnob (l))
     {
         dragging = true;
