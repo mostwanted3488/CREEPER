@@ -42,6 +42,12 @@ Download the zip for your system from the **Releases** page (or the latest build
 - The plugin is not notarized yet. If macOS blocks it, run in Terminal:
   `xattr -cr ~/Library/Audio/Plug-Ins/VST3/CREEPER.vst3 ~/Library/Audio/Plug-Ins/Components/CREEPER.component`
 
+**macOS — build it yourself (if no Mac download is available)**
+1. Download this repo: green **Code** button → **Download ZIP**, unzip it.
+2. Open **Terminal**, type `bash ` (with a space), drag `build-mac.sh` into the window, press Enter.
+3. First time only: if asked, install the Xcode Command Line Tools, then run step 2 again.
+It builds and installs the VST3 and AU automatically (about 5–10 minutes the first time).
+
 **Windows**
 - `CREEPER.vst3` → `C:\Program Files\Common Files\VST3\`
 
